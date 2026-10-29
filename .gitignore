@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+*.json.cache
+cache/
+data_cache/
+.coverage
+htmlcov/
+.pytest_cache/
+portfolio_state.json
