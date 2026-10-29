@@ -142,6 +142,9 @@ Gross Loss        : -₹2,596.14
 
 ```
 nse-swing-trader/
+├── swing-ui/               # Interactive Web Terminal & REST API Server (port 8501)
+│   ├── server.py           # Pure Python standard-library HTTP server
+│   └── static/index.html   # Canvas live candlestick chart, scanner & portfolio UI
 ├── swing_core/             # Core indicators, data feed, and universe definition
 │   ├── indicators.py       # SMA, EMA, ATR, RSI, Supertrend, RS Rating
 │   ├── data_feed.py        # Yahoo Finance daily & weekly bars with local caching
@@ -154,17 +157,22 @@ nse-swing-trader/
 ├── swing-budget/           # Exact Indian delivery statutory charge calculator
 ├── swing-backtest/         # Event-driven historical multi-year backtesting engine
 ├── swing-paper-trader/     # Daily interactive paper trading CLI
-└── tests/                  # 32 comprehensive unit tests
+└── tests/                  # 33 comprehensive unit tests
 ```
 
 ---
 
 ## 🚀 Quick Start & CLI Usage
 
-### 1. Check Today's Nifty 50 Market Regime
+### 1. Launch Interactive Web UI & Live Candlestick Charts (Browser)
 ```bash
-python3 swing-regime/regime.py
+python3 swing-ui/server.py --port 8501
 ```
+Open **`http://localhost:8501`** in your browser to access:
+- 📊 **Interactive Candlestick Chart View**: 20/50/200 EMA, Supertrend, Volume histogram, crosshair tooltips
+- 🔍 **Live Swing Scanner**: One-click scan with direct chart viewing and paper order placement
+- 💼 **Paper Portfolio Manager**: Real-time MTM valuations, position tracking, and manual/auto exits
+- ⚙️ **Historical Backtest Simulator**: Parameter tweaking with live equity curve plotting
 
 ### 2. Scan for Swing Setups Across NSE Equities
 ```bash

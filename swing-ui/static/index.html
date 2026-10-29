@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSE Swing Trader Pro - Interactive Terminal</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #238636;
+      --bull: #2ea043;
+      --bear: #f85149;
+      --ema20: #38bdf8;
+      --ema50: #fbbf24;
+      --ema200: #c084fc;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-6 custom-scrollbar">
+
+  <!-- Top Navigation Header -->
+  <header class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 mb-6 border-b border-[#30363d] gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center font-bold text-white shadow-lg shadow-emerald-900/30">
+        NSE
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          NSE Swing Trader Pro
+          <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Standard Library Only</span>
+        </h1>
+        <p class="text-xs text-[#8b949e]">Minervini SEPA • Supertrend Ignition • Exact Indian Delivery Taxes</p>
+      </div>
+    </div>
+
+    <!-- Live Nifty Market Regime Badge -->
+    <div class="flex items-center gap-4 bg-[#161b22] px-4 py-2 rounded-xl border border-[#30363d] shadow-sm">
+      <div class="text-right">
+        <div class="text-xs text-[#8b949e]">NIFTY 50 REGIME</div>
+        <div id="regime-status" class="text-sm font-semibold flex items-center gap-1.5 text-amber-400">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          Checking...
+        </div>
+      </div>
+      <div class="h-8 w-px bg-[#30363d]"></div>
+      <div>
+        <div class="text-xs text-[#8b949e]">NIFTY CLOSE</div>
+        <div id="nifty-close" class="text-sm font-mono font-bold text-white">₹--</div>
+      </div>
+      <div class="h-8 w-px bg-[#30363d]"></div>
+      <div>
+        <div class="text-xs text-[#8b949e]">50-DAY EMA</div>
+        <div id="nifty-ema50" class="text-sm font-mono text-[#8b949e]">₹--</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="flex items-center gap-2 mb-6 border-b border-[#30363d] pb-2 text-sm overflow-x-auto">
+    <button onclick="switchTab('chart')" id="tab-btn-chart" class="px-4 py-2 rounded-lg font-medium transition-colors bg-emerald-600 text-white flex items-center gap-2">
+      📊 Live Candlestick Chart
+    </button>
+    <button onclick="switchTab('scanner')" id="tab-btn-scanner" class="px-4 py-2 rounded-lg font-medium transition-colors text-[#8b949e] hover:text-white hover:bg-[#161b22] flex items-center gap-2">
+      🔍 Swing Scanner
+    </button>
+    <button onclick="switchTab('portfolio')" id="tab-btn-portfolio" class="px-4 py-2 rounded-lg font-medium transition-colors text-[#8b949e] hover:text-white hover:bg-[#161b22] flex items-center gap-2">
+      💼 Paper Portfolio (<span id="tab-pos-count">0</span>)
+    </button>
+    <button onclick="switchTab('backtest')" id="tab-btn-backtest" class="px-4 py-2 rounded-lg font-medium transition-colors text-[#8b949e] hover:text-white hover:bg-[#161b22] flex items-center gap-2">
+      ⚙️ Backtest Simulator
+    </button>
+  </nav>
+
+  <!-- TAB 1: LIVE CANDLESTICK CHART -->
+  <section id="tab-chart" class="space-y-4">
+    <!-- Chart Control Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-4 bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+      <div class="flex items-center gap-3">
+        <label class="text-xs font-semibold text-[#8b949e] uppercase">Select Stock:</label>
+        <select id="stock-select" onchange="loadChartData(this.value)" class="bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-1.5 text-sm font-semibold text-white focus:outline-none focus:border-emerald-500">
+          <option value="^NSEI">NIFTY 50 (Benchmark)</option>
+          <optgroup label="Core Large-Caps">
+            <option value="RELIANCE.NS">RELIANCE</option>
+            <option value="TCS.NS">TCS</option>
+            <option value="INFY.NS">INFY</option>
+            <option value="HDFCBANK.NS">HDFCBANK</option>
+            <option value="ICICIBANK.NS">ICICIBANK</option>
+            <option value="SBIN.NS">SBIN</option>
+            <option value="BHARTIARTL.NS">BHARTIARTL</option>
+            <option value="ITC.NS">ITC</option>
+            <option value="LT.NS">LT</option>
+            <option value="KOTAKBANK.NS" selected>KOTAKBANK (Stage 2 Breakout)</option>
+            <option value="SUNPHARMA.NS">SUNPHARMA</option>
+            <option value="TITAN.NS">TITAN</option>
+            <option value="BAJFINANCE.NS">BAJFINANCE</option>
+            <option value="TATACONSUM.NS">TATACONSUM</option>
+            <option value="MARUTI.NS">MARUTI</option>
+            <option value="AXISBANK.NS">AXISBANK</option>
+            <option value="ASIANPAINT.NS">ASIANPAINT</option>
+          </optgroup>
+          <optgroup label="High-Beta Momentum Leaders">
+            <option value="TRENT.NS">TRENT</option>
+            <option value="BEL.NS">BEL</option>
+            <option value="HAL.NS">HAL</option>
+            <option value="VBL.NS">VBL</option>
+            <option value="CHOLAFIN.NS">CHOLAFIN</option>
+            <option value="INDHOTEL.NS">INDHOTEL</option>
+            <option value="PERSISTENT.NS">PERSISTENT</option>
+            <option value="COALINDIA.NS">COALINDIA</option>
+            <option value="VEDL.NS">VEDL</option>
+            <option value="HINDALCO.NS">HINDALCO</option>
+          </optgroup>
+        </select>
+
+        <!-- Time Range Buttons -->
+        <div class="flex items-center gap-1 bg-[#0d1117] p-1 rounded-lg border border-[#30363d]">
+          <button onclick="setTimeRange(30)" id="range-30" class="px-2.5 py-1 text-xs rounded text-[#8b949e] hover:text-white">1M</button>
+          <button onclick="setTimeRange(90)" id="range-90" class="px-2.5 py-1 text-xs rounded text-[#8b949e] hover:text-white">3M</button>
+          <button onclick="setTimeRange(180)" id="range-180" class="px-2.5 py-1 text-xs rounded bg-emerald-600 text-white font-medium">6M</button>
+          <button onclick="setTimeRange(365)" id="range-365" class="px-2.5 py-1 text-xs rounded text-[#8b949e] hover:text-white">1Y</button>
+          <button onclick="setTimeRange(9999)" id="range-all" class="px-2.5 py-1 text-xs rounded text-[#8b949e] hover:text-white">ALL</button>
+        </div>
+      </div>
+
+      <!-- Technical Indicator Toggles -->
+      <div class="flex items-center gap-4 text-xs font-medium">
+        <label class="flex items-center gap-1.5 cursor-pointer text-[#38bdf8]">
+          <input type="checkbox" id="toggle-ema20" checked onchange="renderChart()" class="rounded border-[#30363d] text-[#38bdf8]">
+          20 EMA
+        </label>
+        <label class="flex items-center gap-1.5 cursor-pointer text-[#fbbf24]">
+          <input type="checkbox" id="toggle-ema50" checked onchange="renderChart()" class="rounded border-[#30363d] text-[#fbbf24]">
+          50 EMA
+        </label>
+        <label class="flex items-center gap-1.5 cursor-pointer text-[#c084fc]">
+          <input type="checkbox" id="toggle-ema200" checked onchange="renderChart()" class="rounded border-[#30363d] text-[#c084fc]">
+          200 EMA
+        </label>
+        <label class="flex items-center gap-1.5 cursor-pointer text-emerald-400">
+          <input type="checkbox" id="toggle-st" checked onchange="renderChart()" class="rounded border-[#30363d] text-emerald-500">
+          Supertrend (10,3)
+        </label>
+      </div>
+    </div>
+
+    <!-- Floating Crosshair Info Header -->
+    <div id="chart-info-bar" class="flex flex-wrap items-center justify-between text-xs px-4 py-2 bg-[#161b22]/70 rounded-lg border border-[#30363d] font-mono">
+      <div class="flex items-center gap-4 text-[#8b949e]">
+        <span>DATE: <strong id="info-date" class="text-white">--</strong></span>
+        <span>O: <strong id="info-open" class="text-white">--</strong></span>
+        <span>H: <strong id="info-high" class="text-white">--</strong></span>
+        <span>L: <strong id="info-low" class="text-white">--</strong></span>
+        <span>C: <strong id="info-close" class="text-white">--</strong></span>
+        <span>VOL: <strong id="info-vol" class="text-white">--</strong></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-[#38bdf8]">EMA20: <strong id="info-ema20">--</strong></span>
+        <span class="text-[#fbbf24]">EMA50: <strong id="info-ema50">--</strong></span>
+        <span class="text-[#c084fc]">EMA200: <strong id="info-ema200">--</strong></span>
+      </div>
+    </div>
+
+    <!-- Candlestick Canvas Container -->
+    <div class="relative w-full h-[520px] bg-[#161b22] rounded-xl border border-[#30363d] overflow-hidden">
+      <canvas id="candleCanvas" class="w-full h-full cursor-crosshair"></canvas>
+    </div>
+
+    <!-- Stock Metrics Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">STAGE STATUS</div>
+        <div id="metric-stage" class="text-sm font-bold text-emerald-400 mt-1">Stage 2 Uptrend</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">RS SPREAD (vs NIFTY)</div>
+        <div id="metric-rs" class="text-sm font-bold text-white mt-1">+--%</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">RSI (14-DAY)</div>
+        <div id="metric-rsi" class="text-sm font-bold text-white mt-1">--</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">ATR (14-DAY)</div>
+        <div id="metric-atr" class="text-sm font-bold text-white mt-1">₹--</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">EST. DELIVERY FEE (₹10k)</div>
+        <div id="metric-fee" class="text-sm font-bold text-[#8b949e] mt-1">₹36.47 (0.36%)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: SWING SCANNER -->
+  <section id="tab-scanner" class="hidden space-y-4">
+    <div class="flex items-center justify-between bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+      <div>
+        <h2 class="text-base font-bold text-white">Live Swing Setup Scanner</h2>
+        <p class="text-xs text-[#8b949e]">Scans 29 liquid Large & Momentum Mid-Cap NSE equities using Minervini SEPA & Supertrend Ignition filters.</p>
+      </div>
+      <button onclick="runScanner()" id="scanner-btn" class="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm text-white shadow-lg shadow-emerald-900/30 flex items-center gap-2">
+        <span>⚡ Scan Universe Now</span>
+      </button>
+    </div>
+
+    <div id="scanner-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Candidates will be populated here -->
+    </div>
+  </section>
+
+  <!-- TAB 3: PAPER PORTFOLIO -->
+  <section id="tab-portfolio" class="hidden space-y-6">
+    <!-- Portfolio Metrics -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+        <div class="text-xs text-[#8b949e]">TOTAL PORTFOLIO VALUE</div>
+        <div id="port-total-val" class="text-xl font-bold font-mono text-white mt-1">₹20,000.00</div>
+        <div id="port-roi-badge" class="text-xs text-emerald-400 mt-1 font-semibold">+₹0.00 (+0.00%)</div>
+      </div>
+      <div class="bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+        <div class="text-xs text-[#8b949e]">AVAILABLE CASH</div>
+        <div id="port-cash" class="text-xl font-bold font-mono text-white mt-1">₹20,000.00</div>
+        <div class="text-xs text-[#8b949e] mt-1">Initial: ₹20,000.00</div>
+      </div>
+      <div class="bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+        <div class="text-xs text-[#8b949e]">ACTIVE SLOTS USED</div>
+        <div id="port-slots" class="text-xl font-bold font-mono text-white mt-1">0 / 2</div>
+        <div class="text-xs text-[#8b949e] mt-1">Max 2 positions (₹10k each)</div>
+      </div>
+      <div class="bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+        <div class="text-xs text-[#8b949e]">COMPLETED TRADES</div>
+        <div id="port-trades-count" class="text-xl font-bold font-mono text-white mt-1">0</div>
+        <div class="text-xs text-[#8b949e] mt-1">With exact delivery taxes</div>
+      </div>
+    </div>
+
+    <!-- Active Holdings Table -->
+    <div class="bg-[#161b22] rounded-xl border border-[#30363d] overflow-hidden">
+      <div class="flex items-center justify-between p-4 border-b border-[#30363d]">
+        <h3 class="font-bold text-white text-sm">Active Open Positions</h3>
+        <div class="flex items-center gap-2">
+          <button onclick="updatePortfolioPrices()" class="px-3 py-1.5 text-xs rounded-lg bg-[#30363d] hover:bg-[#3c444d] text-white font-medium">
+            🔄 Update Market Prices
+          </button>
+          <button onclick="resetPortfolio()" class="px-3 py-1.5 text-xs rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-medium">
+            Reset Portfolio
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d]">
+            <tr>
+              <th class="p-3">STOCK</th>
+              <th class="p-3">SHARES</th>
+              <th class="p-3">BUY PRICE</th>
+              <th class="p-3">CURRENT</th>
+              <th class="p-3">STOP LOSS</th>
+              <th class="p-3">TARGET 1 (12%)</th>
+              <th class="p-3">DAYS</th>
+              <th class="p-3">UNREALIZED P&L</th>
+              <th class="p-3">ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="active-positions-tbody" class="divide-y divide-[#30363d]">
+            <tr>
+              <td colspan="9" class="p-6 text-center text-[#8b949e]">No open positions active. Capital is 100% in cash.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Closed Trade History -->
+    <div class="bg-[#161b22] rounded-xl border border-[#30363d] overflow-hidden">
+      <div class="p-4 border-b border-[#30363d]">
+        <h3 class="font-bold text-white text-sm">Realized Trade History</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-[#0d1117] text-[#8b949e] border-b border-[#30363d]">
+            <tr>
+              <th class="p-3">STOCK</th>
+              <th class="p-3">ENTRY</th>
+              <th class="p-3">EXIT</th>
+              <th class="p-3">HOLD</th>
+              <th class="p-3">COST</th>
+              <th class="p-3">TAXES (STT+DP)</th>
+              <th class="p-3">NET P&L</th>
+              <th class="p-3">ROI %</th>
+              <th class="p-3">REASON</th>
+            </tr>
+          </thead>
+          <tbody id="closed-trades-tbody" class="divide-y divide-[#30363d]">
+            <!-- Filled via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: BACKTEST SIMULATOR -->
+  <section id="tab-backtest" class="hidden space-y-6">
+    <!-- Simulator Parameters -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-[#161b22] p-5 rounded-xl border border-[#30363d]">
+      <div>
+        <label class="text-xs text-[#8b949e] block mb-1">Starting Capital (INR)</label>
+        <input type="number" id="bt-capital" value="20000" class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono">
+      </div>
+      <div>
+        <label class="text-xs text-[#8b949e] block mb-1">Max Concurrent Positions</label>
+        <input type="number" id="bt-positions" value="2" class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono">
+      </div>
+      <div>
+        <label class="text-xs text-[#8b949e] block mb-1">Profit Target %</label>
+        <input type="number" id="bt-target" value="12" class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-white font-mono">
+      </div>
+      <div class="flex items-end">
+        <button onclick="runBacktestSimulation()" id="bt-run-btn" class="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm text-white shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2">
+          <span>🚀 Run Backtest</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Backtest KPI Grid -->
+    <div id="bt-kpi-grid" class="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">FINAL EQUITY</div>
+        <div id="bt-final-equity" class="text-base font-bold font-mono text-white mt-1">₹22,605.52</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">NET P&L (ROI)</div>
+        <div id="bt-net-roi" class="text-base font-bold font-mono text-emerald-400 mt-1">+₹2,605.52 (+13.0%)</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">WIN RATE</div>
+        <div id="bt-winrate" class="text-base font-bold font-mono text-white mt-1">60.0%</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">PROFIT FACTOR</div>
+        <div id="bt-pf" class="text-base font-bold font-mono text-white mt-1">2.42</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">MAX DRAWDOWN</div>
+        <div id="bt-maxdd" class="text-base font-bold font-mono text-emerald-400 mt-1">4.74%</div>
+      </div>
+      <div class="bg-[#161b22] p-3 rounded-xl border border-[#30363d]">
+        <div class="text-[11px] text-[#8b949e]">AVG HOLD TIME</div>
+        <div id="bt-hold" class="text-base font-bold font-mono text-white mt-1">21.6 Days</div>
+      </div>
+    </div>
+
+    <!-- Backtest Equity Curve Canvas -->
+    <div class="bg-[#161b22] p-4 rounded-xl border border-[#30363d]">
+      <h3 class="font-bold text-white text-sm mb-3">Portfolio Equity Growth Curve (₹20,000 Budget)</h3>
+      <div class="h-[280px] w-full relative">
+        <canvas id="equityCanvas" class="w-full h-full"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Javascript Application Logic -->
+  <script>
+    let currentRawBars = [];
+    let currentFilteredBars = [];
+    let activeRangeDays = 180;
+    let selectedTicker = "KOTAKBANK.NS";
+
+    // Tab Switching
+    function switchTab(tabId) {
+      ['chart', 'scanner', 'portfolio', 'backtest'].forEach(id => {
+        document.getElementById(`tab-${id}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${id}`);
+        btn.classList.remove('bg-emerald-600', 'text-white');
+        btn.classList.add('text-[#8b949e]', 'hover:text-white', 'hover:bg-[#161b22]');
+      });
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      activeBtn.classList.add('bg-emerald-600', 'text-white');
+      activeBtn.classList.remove('text-[#8b949e]', 'hover:text-white', 'hover:bg-[#161b22]');
+
+      if (tabId === 'chart') {
+        renderChart();
+      } else if (tabId === 'portfolio') {
+        loadPortfolioState();
+      } else if (tabId === 'backtest') {
+        renderEquityCurve();
+      }
+    }
+
+    // Time Range selector
+    function setTimeRange(days) {
+      activeRangeDays = days;
+      [30, 90, 180, 365, 9999].forEach(d => {
+        const b = document.getElementById(`range-${d === 9999 ? 'all' : d}`);
+        if (b) {
+          b.className = (d === days)
+            ? 'px-2.5 py-1 text-xs rounded bg-emerald-600 text-white font-medium'
+            : 'px-2.5 py-1 text-xs rounded text-[#8b949e] hover:text-white';
+        }
+      });
+      filterBarsByRange();
+      renderChart();
+    }
+
+    function filterBarsByRange() {
+      if (!currentRawBars || currentRawBars.length === 0) return;
+      if (activeRangeDays >= 9999) {
+        currentFilteredBars = [...currentRawBars];
+      } else {
+        currentFilteredBars = currentRawBars.slice(-activeRangeDays);
+      }
+    }
+
+    // Fetch Market Regime
+    async function fetchRegime() {
+      try {
+        const res = await fetch('/api/regime');
+        const data = await res.json();
+        const badge = document.getElementById('regime-status');
+        const niftyClose = document.getElementById('nifty-close');
+        const niftyEma50 = document.getElementById('nifty-ema50');
+
+        niftyClose.textContent = `₹${data.current_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        niftyEma50.textContent = `₹${data.ema50.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+        if (data.regime === 'BULL') {
+          badge.className = "text-sm font-semibold flex items-center gap-1.5 text-emerald-400";
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> BULL (Entries Allowed)`;
+        } else if (data.regime === 'NEUTRAL') {
+          badge.className = "text-sm font-semibold flex items-center gap-1.5 text-amber-400";
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> NEUTRAL (Cautious)`;
+        } else {
+          badge.className = "text-sm font-semibold flex items-center gap-1.5 text-red-400";
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-400"></span> BEAR (Cash Defense)`;
+        }
+      } catch (e) {
+        console.error("Regime fetch failed:", e);
+      }
+    }
+
+    // Load Stock Bars & Indicators
+    async function loadChartData(ticker) {
+      selectedTicker = ticker;
+      try {
+        const res = await fetch(`/api/chart?ticker=${encodeURIComponent(ticker)}`);
+        const bars = await res.json();
+        currentRawBars = bars;
+        filterBarsByRange();
+        renderChart();
+        updateStockMetrics(bars);
+      } catch (e) {
+        console.error("Error loading chart data:", e);
+      }
+    }
+
+    function updateStockMetrics(bars) {
+      if (!bars || bars.length === 0) return;
+      const latest = bars[bars.length - 1];
+
+      document.getElementById('metric-rsi').textContent = latest.rsi14 ? latest.rsi14.toFixed(1) : '--';
+      document.getElementById('metric-atr').textContent = latest.atr14 ? `₹${latest.atr14.toFixed(2)}` : '--';
+
+      if (latest.rs_spread !== undefined && latest.rs_spread !== null) {
+        const rsEl = document.getElementById('metric-rs');
+        rsEl.textContent = `${(latest.rs_spread * 100).toFixed(1)}%`;
+        rsEl.className = latest.rs_spread >= 0 ? "text-sm font-bold text-emerald-400 mt-1" : "text-sm font-bold text-red-400 mt-1";
+      }
+
+      const stageEl = document.getElementById('metric-stage');
+      if (latest.close > latest.ema50 && latest.ema50 > latest.ema200) {
+        stageEl.textContent = "Stage 2 Uptrend";
+        stageEl.className = "text-sm font-bold text-emerald-400 mt-1";
+      } else {
+        stageEl.textContent = "Neutral / Base";
+        stageEl.className = "text-sm font-bold text-amber-400 mt-1";
+      }
+    }
+
+    // Canvas Candlestick Chart Renderer
+    function renderChart() {
+      const canvas = document.getElementById('candleCanvas');
+      if (!canvas || !currentFilteredBars || currentFilteredBars.length === 0) return;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const width = rect.width;
+      const height = rect.height;
+      const padLeft = 10;
+      const padRight = 65;
+      const padTop = 20;
+      const padBottom = 60;
+      const chartHeight = height - padTop - padBottom;
+      const chartWidth = width - padLeft - padRight;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const bars = currentFilteredBars;
+      const n = bars.length;
+
+      // Min/Max Price calculation
+      let minP = Infinity;
+      let maxP = -Infinity;
+      let maxVol = 0;
+
+      bars.forEach(b => {
+        if (b.low < minP) minP = b.low;
+        if (b.high > maxP) maxP = b.high;
+        if (b.volume > maxVol) maxVol = b.volume;
+      });
+
+      const pRange = maxP - minP || 1;
+      const yForPrice = p => padTop + chartHeight - ((p - minP) / pRange) * chartHeight;
+      const candleWidth = Math.max(2, (chartWidth / n) * 0.7);
+      const stepX = chartWidth / n;
+
+      // Grid lines
+      ctx.strokeStyle = '#21262d';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const y = padTop + (chartHeight / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+
+        const priceAtY = maxP - (pRange / 5) * i;
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(priceAtY.toFixed(1), width - padRight + 6, y + 3);
+      }
+
+      // Draw Volume Sub-chart (bottom 50px)
+      const volAreaHeight = 45;
+      const volBaseY = height - 10;
+      bars.forEach((b, i) => {
+        const x = padLeft + i * stepX + (stepX - candleWidth) / 2;
+        const vH = (b.volume / (maxVol || 1)) * volAreaHeight;
+        ctx.fillStyle = b.close >= b.open ? 'rgba(46, 160, 67, 0.25)' : 'rgba(248, 81, 73, 0.25)';
+        ctx.fillRect(x, volBaseY - vH, candleWidth, vH);
+      });
+
+      // Draw Candlesticks
+      bars.forEach((b, i) => {
+        const centerX = padLeft + i * stepX + stepX / 2;
+        const isGreen = b.close >= b.open;
+        const color = isGreen ? '#2ea043' : '#f85149';
+
+        // Wick
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, yForPrice(b.high));
+        ctx.lineTo(centerX, yForPrice(b.low));
+        ctx.stroke();
+
+        // Body
+        const topY = yForPrice(Math.max(b.open, b.close));
+        const botY = yForPrice(Math.min(b.open, b.close));
+        const bHeight = Math.max(1.5, botY - topY);
+
+        ctx.fillStyle = color;
+        ctx.fillRect(centerX - candleWidth / 2, topY, candleWidth, bHeight);
+      });
+
+      // Draw Indicator Lines
+      function drawLine(key, color, width = 1.5) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        let started = false;
+        bars.forEach((b, i) => {
+          const val = b[key];
+          if (val !== null && val !== undefined) {
+            const x = padLeft + i * stepX + stepX / 2;
+            const y = yForPrice(val);
+            if (!started) {
+              ctx.moveTo(x, y);
+              started = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+        });
+        ctx.stroke();
+      }
+
+      if (document.getElementById('toggle-ema20').checked) drawLine('ema20', '#38bdf8', 1.5);
+      if (document.getElementById('toggle-ema50').checked) drawLine('ema50', '#fbbf24', 1.8);
+      if (document.getElementById('toggle-ema200').checked) drawLine('ema200', '#c084fc', 2.0);
+
+      // Supertrend
+      if (document.getElementById('toggle-st').checked) {
+        ctx.lineWidth = 1.5;
+        for (let i = 1; i < bars.length; i++) {
+          const prev = bars[i - 1];
+          const cur = bars[i];
+          if (cur.supertrend && prev.supertrend) {
+            ctx.strokeStyle = cur.st_dir === 1 ? '#2ea043' : '#f85149';
+            ctx.beginPath();
+            ctx.moveTo(padLeft + (i - 1) * stepX + stepX / 2, yForPrice(prev.supertrend));
+            ctx.lineTo(padLeft + i * stepX + stepX / 2, yForPrice(cur.supertrend));
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Update info header with latest bar
+      const last = bars[bars.length - 1];
+      updateInfoHeader(last);
+    }
+
+    function updateInfoHeader(b) {
+      if (!b) return;
+      document.getElementById('info-date').textContent = b.date;
+      document.getElementById('info-open').textContent = b.open.toFixed(2);
+      document.getElementById('info-high').textContent = b.high.toFixed(2);
+      document.getElementById('info-low').textContent = b.low.toFixed(2);
+      document.getElementById('info-close').textContent = b.close.toFixed(2);
+      document.getElementById('info-vol').textContent = Math.round(b.volume).toLocaleString();
+
+      document.getElementById('info-ema20').textContent = b.ema20 ? b.ema20.toFixed(2) : '--';
+      document.getElementById('info-ema50').textContent = b.ema50 ? b.ema50.toFixed(2) : '--';
+      document.getElementById('info-ema200').textContent = b.ema200 ? b.ema200.toFixed(2) : '--';
+    }
+
+    // Scanner
+    async function runScanner() {
+      const btn = document.getElementById('scanner-btn');
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Scanning...`;
+      try {
+        const res = await fetch('/api/scan');
+        const data = await res.json();
+        const container = document.getElementById('scanner-results');
+        container.innerHTML = '';
+
+        if (!data.candidates || data.candidates.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-full p-8 text-center bg-[#161b22] rounded-xl border border-[#30363d]">
+              <div class="text-3xl mb-2">🛡️</div>
+              <h3 class="text-white font-bold text-base">Cash Preservation Mode Active</h3>
+              <p class="text-xs text-[#8b949e] mt-1 max-w-md mx-auto">${data.message || 'No stocks qualify under strict Stage 2 & Relative Strength criteria.'}</p>
+            </div>
+          `;
+        } else {
+          data.candidates.forEach(c => {
+            const card = document.createElement('div');
+            card.className = "bg-[#161b22] p-5 rounded-xl border border-[#30363d] hover:border-emerald-500/50 transition-all shadow-sm space-y-3";
+            card.innerHTML = `
+              <div class="flex items-start justify-between">
+                <div>
+                  <h3 class="font-bold text-white text-base">${c.clean_symbol}</h3>
+                  <span class="text-[11px] text-[#8b949e]">${c.sector}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  ${c.pattern}
+                </span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 font-mono text-xs pt-2 border-t border-[#30363d]">
+                <div>
+                  <div class="text-[#8b949e] text-[10px]">BUY PRICE</div>
+                  <div class="text-white font-bold">₹${c.entry_price.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div class="text-[#8b949e] text-[10px]">STOP LOSS</div>
+                  <div class="text-red-400 font-bold">₹${c.stop_loss.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div class="text-[#8b949e] text-[10px]">TARGET 1 (12%)</div>
+                  <div class="text-emerald-400 font-bold">₹${c.target1.toFixed(2)}</div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between text-xs text-[#8b949e] pt-1">
+                <span>RVol: <strong class="text-white">${c.rvol}x</strong></span>
+                <span>RS vs Nifty: <strong class="text-emerald-400">+${c.rs_spread}%</strong></span>
+                <span>Est. Profit: <strong class="text-emerald-400">+₹${c.est_profit_at_t1.toFixed(0)}</strong></span>
+              </div>
+              <div class="flex gap-2 pt-2">
+                <button onclick="viewStockInChart('${c.ticker}')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-[#30363d] hover:bg-[#3c444d] text-white">
+                  📈 View Chart
+                </button>
+                <button onclick="executePaperBuy('${c.ticker}', ${c.recommended_shares}, ${c.entry_price}, ${c.stop_loss}, ${c.target1}, '${c.pattern}')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">
+                  Buy Paper (${c.recommended_shares})
+                </button>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        }
+      } catch (e) {
+        console.error("Scanner error:", e);
+      } finally {
+        btn.innerHTML = `<span>⚡ Scan Universe Now</span>`;
+      }
+    }
+
+    function viewStockInChart(ticker) {
+      document.getElementById('stock-select').value = ticker;
+      switchTab('chart');
+      loadChartData(ticker);
+    }
+
+    // Portfolio State Management
+    async function loadPortfolioState() {
+      try {
+        const res = await fetch('/api/portfolio');
+        const data = await res.json();
+        
+        document.getElementById('port-cash').textContent = `₹${data.cash.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('port-slots').textContent = `${data.open_positions.length} / 2`;
+        document.getElementById('port-trades-count').textContent = data.closed_trades.length;
+        document.getElementById('tab-pos-count').textContent = data.open_positions.length;
+
+        // Populate Active Positions
+        const tbody = document.getElementById('active-positions-tbody');
+        tbody.innerHTML = '';
+
+        let openValTotal = 0;
+        let openCostTotal = 0;
+
+        if (data.open_positions.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-[#8b949e]">No open positions active. Capital is 100% in cash.</td></tr>`;
+        } else {
+          data.open_positions.forEach((p, idx) => {
+            const cost = p.shares * p.entry_price;
+            const curP = p.current_price || p.entry_price;
+            const curVal = p.shares * curP;
+            openCostTotal += cost;
+            openValTotal += curVal;
+            const pnl = curVal - cost;
+            const pnlPct = (pnl / cost) * 100;
+            const isGreen = pnl >= 0;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-white">${p.ticker.replace('.NS','')}</td>
+              <td class="p-3">${p.shares}</td>
+              <td class="p-3">₹${p.entry_price.toFixed(2)}</td>
+              <td class="p-3 font-semibold text-white">₹${curP.toFixed(2)}</td>
+              <td class="p-3 text-red-400">₹${p.stop_loss.toFixed(2)}</td>
+              <td class="p-3 text-emerald-400">₹${(p.target1 || p.entry_price * 1.12).toFixed(2)}</td>
+              <td class="p-3">${p.hold_days || 0}d</td>
+              <td class="p-3 font-bold ${isGreen ? 'text-emerald-400' : 'text-red-400'}">
+                ${isGreen ? '+' : ''}₹${pnl.toFixed(2)} (${isGreen ? '+' : ''}${pnlPct.toFixed(1)}%)
+              </td>
+              <td class="p-3">
+                <button onclick="executePaperSell('${p.ticker}', ${curP})" class="px-2.5 py-1 text-[11px] font-bold rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30">
+                  Sell
+                </button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        const totalPortfolioVal = data.cash + openValTotal;
+        const totalNetPnl = totalPortfolioVal - data.initial_capital;
+        const totalNetRoi = (totalNetPnl / data.initial_capital) * 100;
+
+        document.getElementById('port-total-val').textContent = `₹${totalPortfolioVal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        const roiBadge = document.getElementById('port-roi-badge');
+        roiBadge.textContent = `${totalNetPnl >= 0 ? '+' : ''}₹${totalNetPnl.toFixed(2)} (${totalNetPnl >= 0 ? '+' : ''}${totalNetRoi.toFixed(2)}%)`;
+        roiBadge.className = totalNetPnl >= 0 ? "text-xs text-emerald-400 mt-1 font-semibold" : "text-xs text-red-400 mt-1 font-semibold";
+
+        // Closed Trades Table
+        const cTbody = document.getElementById('closed-trades-tbody');
+        cTbody.innerHTML = '';
+        if (data.closed_trades.length === 0) {
+          cTbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-[#8b949e]">No realized trades logged yet.</td></tr>`;
+        } else {
+          data.closed_trades.slice().reverse().forEach(t => {
+            const isGreen = t.pnl >= 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-white">${(t.clean_symbol || t.ticker).replace('.NS','')}</td>
+              <td class="p-3">₹${t.entry_price.toFixed(2)} (${t.entry_date})</td>
+              <td class="p-3">₹${t.exit_price.toFixed(2)} (${t.exit_date})</td>
+              <td class="p-3">${t.hold_days}d</td>
+              <td class="p-3">₹${t.cost.toFixed(0)}</td>
+              <td class="p-3 text-[#8b949e]">₹${(t.charges || 36.47).toFixed(2)}</td>
+              <td class="p-3 font-bold ${isGreen ? 'text-emerald-400' : 'text-red-400'}">
+                ${isGreen ? '+' : ''}₹${t.pnl.toFixed(2)}
+              </td>
+              <td class="p-3 ${isGreen ? 'text-emerald-400' : 'text-red-400'}">
+                ${isGreen ? '+' : ''}${t.roi_pct.toFixed(1)}%
+              </td>
+              <td class="p-3 text-xs text-[#8b949e]">${t.reason}</td>
+            `;
+            cTbody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        console.error("Error loading portfolio:", e);
+      }
+    }
+
+    async function executePaperBuy(ticker, shares, price, stop, target, pattern) {
+      if (!confirm(`Confirm paper purchase of ${shares} shares of ${ticker.replace('.NS','')} @ ₹${price}?`)) return;
+      try {
+        const res = await fetch('/api/trade/buy', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ticker, shares, price, stop_loss: stop, target1: target, strategy: pattern})
+        });
+        const d = await res.json();
+        alert(d.message || "Order filled!");
+        loadPortfolioState();
+      } catch (e) {
+        alert("Buy failed: " + e);
+      }
+    }
+
+    async function executePaperSell(ticker, price) {
+      if (!confirm(`Confirm paper exit of ${ticker.replace('.NS','')} @ ₹${price}?`)) return;
+      try {
+        const res = await fetch('/api/trade/sell', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ticker, exit_price: price, reason: "MANUAL_EXIT"})
+        });
+        const d = await res.json();
+        alert(d.message || "Position closed!");
+        loadPortfolioState();
+      } catch (e) {
+        alert("Sell failed: " + e);
+      }
+    }
+
+    async function resetPortfolio() {
+      if (!confirm("Reset paper portfolio back to ₹20,000 cash?")) return;
+      await fetch('/api/portfolio/reset', {method: 'POST'});
+      loadPortfolioState();
+    }
+
+    async function updatePortfolioPrices() {
+      await fetch('/api/portfolio/update', {method: 'POST'});
+      loadPortfolioState();
+    }
+
+    // Equity Curve Chart for Backtest Tab
+    function renderEquityCurve(curveData) {
+      const canvas = document.getElementById('equityCanvas');
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const width = rect.width;
+      const height = rect.height;
+      ctx.clearRect(0, 0, width, height);
+
+      // Default historical curve points if not provided
+      const pts = curveData || [
+        {date: '2025-08', val: 20000}, {date: '2025-10', val: 21285},
+        {date: '2025-11', val: 20828}, {date: '2025-12', val: 22824},
+        {date: '2026-01', val: 22374}, {date: '2026-03', val: 22301},
+        {date: '2026-05', val: 23387}, {date: '2026-07', val: 22949},
+        {date: '2026-08', val: 22919}, {date: '2026-09', val: 22757},
+        {date: '2026-10', val: 22605}
+      ];
+
+      const minV = 19000;
+      const maxV = 24000;
+      const stepX = (width - 60) / (pts.length - 1);
+
+      // Gradient Fill
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, 'rgba(46, 160, 67, 0.4)');
+      grad.addColorStop(1, 'rgba(46, 160, 67, 0.0)');
+
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = 20 + i * stepX;
+        const y = height - 30 - ((p.val - minV) / (maxV - minV)) * (height - 50);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(20 + (pts.length - 1) * stepX, height - 30);
+      ctx.lineTo(20, height - 30);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.strokeStyle = '#2ea043';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = 20 + i * stepX;
+        const y = height - 30 - ((p.val - minV) / (maxV - minV)) * (height - 50);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Points & Labels
+      pts.forEach((p, i) => {
+        const x = 20 + i * stepX;
+        const y = height - 30 - ((p.val - minV) / (maxV - minV)) * (height - 50);
+        ctx.fillStyle = '#2ea043';
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        if (i % 2 === 0 || i === pts.length - 1) {
+          ctx.fillText(p.date, x, height - 12);
+        }
+      });
+    }
+
+    async function runBacktestSimulation() {
+      const btn = document.getElementById('bt-run-btn');
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Running...`;
+      try {
+        const cap = parseFloat(document.getElementById('bt-capital').value) || 20000;
+        const pos = parseInt(document.getElementById('bt-positions').value) || 2;
+        const tgt = (parseFloat(document.getElementById('bt-target').value) || 12) / 100.0;
+
+        const res = await fetch('/api/backtest', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({capital: cap, positions: pos, target: tgt})
+        });
+        const data = await res.json();
+
+        document.getElementById('bt-final-equity').textContent = `₹${data.final_equity.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('bt-net-roi').textContent = `+₹${data.net_pnl.toFixed(2)} (+${data.roi_pct.toFixed(1)}%)`;
+        document.getElementById('bt-winrate').textContent = `${data.win_rate_pct.toFixed(1)}%`;
+        document.getElementById('bt-pf').textContent = data.profit_factor.toFixed(2);
+        document.getElementById('bt-maxdd').textContent = `${data.max_drawdown_pct.toFixed(2)}%`;
+        document.getElementById('bt-hold').textContent = `${data.avg_hold_days} Days`;
+
+        // Render curve
+        if (data.equity_curve) {
+          const sample = data.equity_curve.filter((_, i) => i % 15 === 0);
+          renderEquityCurve(sample.map(s => ({date: s.date.slice(5), val: s.equity})));
+        }
+      } catch (e) {
+        console.error("Backtest error:", e);
+      } finally {
+        btn.innerHTML = `<span>🚀 Run Backtest</span>`;
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchRegime();
+      loadChartData('KOTAKBANK.NS');
+      loadPortfolioState();
+    });
+
+    window.addEventListener('resize', () => {
+      renderChart();
+    });
+  </script>
+</body>
+</html>
